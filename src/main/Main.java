@@ -21,6 +21,8 @@ package main;
 
 import adapters.*;
 import main.support.*;
+import trees.*;
+
 import java.io.*;
 import java.lang.management.*;
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ public class Main {
             new ArrayList<TreeFactory<Integer>>();
     static {
         factories.add(new StaticDictionary5Factory<Integer>());
+        factories.add(new KLazyBSTFactor<Integer>());
     }
 
     
@@ -55,7 +58,12 @@ public class Main {
         public String getName() { return "BST"; }
     }
 
-    
+    protected static class KLazyBSTFactor<K> extends TreeFactory<K> {
+        public SetInterface<K> newTree(final Object param) {
+            return new KLazyBSTAdapter();
+        }
+        public String getName() { return "KLazyBST"; }
+    }
     
     // some variables for the test harness
     protected final ThreadMXBean bean = ManagementFactory.getThreadMXBean();
