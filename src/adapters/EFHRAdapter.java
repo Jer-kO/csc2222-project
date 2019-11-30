@@ -20,7 +20,7 @@
 package adapters;
 
 import main.support.SetInterface;
-import trees.LockFreeBSTMap;
+import trees.EFHR_BST;
 import main.support.KSTNode;
 import main.support.OperationListener;
 import main.support.Random;
@@ -29,8 +29,8 @@ import main.support.Random;
  *
  * @author trev
  */
-public class LockFreeBSTAdapter<K extends Comparable<? super K>> extends AbstractAdapter<K> implements SetInterface<K> {
-    LockFreeBSTMap<K,K> tree = new LockFreeBSTMap<K,K>();
+public class EFHRAdapter<K extends Comparable<? super K>> extends AbstractAdapter<K> implements SetInterface<K> {
+    EFHR_BST<K,K> tree = new EFHR_BST<K,K>();
     
     public boolean contains(K key) {
         return tree.containsKey(key);

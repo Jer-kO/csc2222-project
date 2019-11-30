@@ -40,8 +40,9 @@ public class Main {
     static final ArrayList<TreeFactory<Integer>> factories =
             new ArrayList<TreeFactory<Integer>>();
     static {
-        factories.add(new StaticDictionary5Factory<Integer>());
-        factories.add(new KLazyBSTFactor<Integer>());
+        factories.add(new EFRBFactory<Integer>());
+        factories.add(new EFHRFactory<Integer>());
+        factories.add(new KLazyBSTFactory<Integer>());
     }
 
     
@@ -51,18 +52,25 @@ public class Main {
         public abstract String getName();
     }
 
-    protected static class StaticDictionary5Factory<K> extends TreeFactory<K> {
+    protected static class EFRBFactory<K> extends TreeFactory<K> {
         public SetInterface<K> newTree(final Object param) {
-            return new LockFreeBSTAdapter();
+            return new EFRBAdapter();
         }
-        public String getName() { return "BST"; }
+        public String getName() { return "EFRB"; }
+    }
+    
+    protected static class EFHRFactory<K> extends TreeFactory<K> {
+        public SetInterface<K> newTree(final Object param) {
+            return new EFHRAdapter();
+        }
+        public String getName() { return "EFHR"; }
     }
 
-    protected static class KLazyBSTFactor<K> extends TreeFactory<K> {
+    protected static class KLazyBSTFactory<K> extends TreeFactory<K> {
         public SetInterface<K> newTree(final Object param) {
             return new KLazyBSTAdapter();
         }
-        public String getName() { return "KLazyBST"; }
+        public String getName() { return "KLazy"; }
     }
     
     // some variables for the test harness

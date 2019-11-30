@@ -2,27 +2,14 @@ package trees;
 
 /**
  *  This is an implementation of the non-blocking, concurrent binary search tree of
- *  Faith Ellen, Panagiota Fatourou, Eric Ruppert and Franck van Breugel.
- *
- *  Copyright (C) 2011  Trevor Brown, Joanna Helga
- *  Contact Trevor Brown (tabrown@cs.toronto.edu) with any questions or comments.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *  Faith Ellen, Panagiota Fatourou, Joanna Helga and Eric Ruppert.
  */
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
+public class EFHR_BST<K extends Comparable<? super K>, V> {
 
     //--------------------------------------------------------------------------------
     // Class: Node
@@ -108,7 +95,7 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
 
     final Node<K,V> root;
 
-    public LockFreeBSTMap() {
+    public EFHR_BST() {
         // to avoid handling special case when <= 2 nodes,
         // create 2 dummy nodes, both contain key null
         // All real keys inside BST are required to be non-null
@@ -156,21 +143,34 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
         /** END SEARCH VARIABLES **/
 
         newNode = new Node<K,V>(key, value);
-
+        Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
-
-            /** SEARCH **/
-            p = root;
-            pinfo = p.info;
-            l = p.left;
-            while (l.left != null) {
-                p = l;
-                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            /** NEW BACKTRACKING SEARCH **/
+            if (stack.isEmpty()) {
+            	l = root;
+            } else {
+            	l = stack.pop();
+            	Info<K, V> lhr = l.info;
+            	while (lhr.getClass() == Mark.class) {
+            		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
+            		lhr = l.info;
+            	}
             }
-            pinfo = p.info;                             // read pinfo once instead of every iteration
-            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
-                                                        // (just as if we'd read p's info field before the reference to l)
-            /** END SEARCH **/
+            while (l.left != null) { // while l is not a leaf;
+            	stack.push(l);
+            	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
+            
+            if (!stack.isEmpty()) {
+	            p = stack.peek();
+	            pinfo = p.info;
+            } else {
+            	return null; //empty tree
+            }
+            
+            if (l != p.left && l != p.right) continue; // Break iteration
+            /** END BACKTRACKING SEARCH **/ 
 
             if (key.equals(l.key)) {
                 return l.value;	// key already in the tree, no duplicate allowed
@@ -215,20 +215,36 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
         /** END SEARCH VARIABLES **/
         newNode = new Node<K, V>(key, value);
         
+        Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
-            /** SEARCH **/
-            p = root;
-            pinfo = p.info;
-            l = p.left;
-            while (l.left != null) {
-                p = l;
-                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            /** NEW BACKTRACKING SEARCH **/
+            // TODO
+            if (stack.isEmpty()) {
+            	l = root;
+            } else {
+            	l = stack.pop();
+            	Info<K, V> lhr = l.info;
+            	while (lhr.getClass() == Mark.class) {
+            		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
+            		lhr = l.info;
+            	}
             }
-            pinfo = p.info;                             // read pinfo once instead of every iteration
-            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
-                                                        // (just as if we'd read p's info field before the reference to l)
-            /** END SEARCH **/
+            while (l.left != null) { // while l is not a leaf;
+            	stack.push(l);
+            	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
             
+            if (!stack.isEmpty()) {
+	            p = stack.peek();
+	            pinfo = p.info;
+            } else {
+            	return null; //empty tree
+            }
+            
+            if (l != p.left && l != p.right) continue; // Break iteration
+            /** END BACKTRACKING SEARCH **/ 
+
             if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
                 help(pinfo);
             } else {
@@ -266,7 +282,6 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
     // Delete key from dictionary, return the associated value when successful, null otherwise
     /** PRECONDITION: k CANNOT BE NULL **/
     public final V remove(final K key){
-
         /** SEARCH VARIABLES **/
         Node<K,V> gp;
         Info<K,V> gpinfo;
@@ -275,29 +290,43 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
         Node<K,V> l;
         /** END SEARCH VARIABLES **/
         
-        while (true) {
+        Stack<Node<K, V>> stack = new Stack<>();
+        while (true) {   
+        	// TODO
+            /** Backtracking Search **/
+            if (stack.isEmpty()) {
+            	l = root;
+            } else {
+            	l = stack.pop();
+            	Info<K, V> lhr = l.info;
+            	while (lhr.getClass() == Mark.class) {
+            		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
+            		lhr = l.info;
+            	}
+            }
+            while (l.left != null) { // while l is not a leaf;
+            	stack.push(l);
+            	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
 
-            /** SEARCH **/
-            gp = null;
-            gpinfo = null;
-            p = root;
-            pinfo = p.info;
-            l = p.left;
-            while (l.left != null) {
-                gp = p;
-                p = l;
-                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            // note: Stack should never be empty here
+        	p = stack.pop();
+        	pinfo = p.info;
+
+            if (!stack.isEmpty()) {
+            	gp = stack.peek();
+            	gpinfo = gp.info;
+            } else {
+            	return null; //empty tree
             }
             // note: gp can be null here, because clearly the root.left.left == null
             //       when the tree is empty. however, in this case, l.key will be null,
             //       and the function will return null, so this does not pose a problem.
-            if (gp != null) {
-                gpinfo = gp.info;                               // - read gpinfo once instead of every iteration
-                if (p != gp.left && p != gp.right) continue;    //   then confirm the child link to p is valid
-                pinfo = p.info;                                 //   (just as if we'd read gp's info field before the reference to p)
-                if (l != p.left && l != p.right)  continue;      // - do the same for pinfo and l
-            }
-            /** END SEARCH **/
+
+            if (p != gp.left && p != gp.right) continue; // break iteration
+            if (l != p.left && l != p.right)  continue; 
+            /** End Backtracking Search **/
             
             if (!key.equals(l.key)) return null;
             if (!(gpinfo == null || gpinfo.getClass() == Clean.class)) {
