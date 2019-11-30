@@ -1,11 +1,11 @@
 package main;
 
-import trees.LockFreeBSTMap;
+import trees.*;
 
 public class Test {
 	
-	public static void main2(String[] args) {
-		LockFreeBSTMap<Integer, String> bst = new LockFreeBSTMap<>();
+	public static void main(String[] args) {
+		KLazyBST<Integer, String> bst = new KLazyBST<>();
 		
 		bst.put(1, "a");
 		String val = bst.get(1);
@@ -13,6 +13,7 @@ public class Test {
 		bst.remove(1);
 		Boolean contains = bst.containsKey(1);
 		System.out.println(contains);
+		bst.remove(1);
 	}
 
 }

@@ -295,7 +295,7 @@ public class LockFreeBSTMap<K extends Comparable<? super K>, V> {
                 gpinfo = gp.info;                               // - read gpinfo once instead of every iteration
                 if (p != gp.left && p != gp.right) continue;    //   then confirm the child link to p is valid
                 pinfo = p.info;                                 //   (just as if we'd read gp's info field before the reference to p)
-                if (l != p.left && l != p.right) continue;      // - do the same for pinfo and l
+                if (l != p.left && l != p.right)  continue;      // - do the same for pinfo and l
             }
             /** END SEARCH **/
             

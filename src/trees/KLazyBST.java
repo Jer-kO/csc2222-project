@@ -159,21 +159,34 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         /** END SEARCH VARIABLES **/
 
         newNode = new Node<K,V>(key, value);
-
+        Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
-
-            /** SEARCH **/
-            p = root;
-            pinfo = p.info;
-            l = p.left;
-            while (l.left != null) {
-                p = l;
-                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            /** NEW BACKTRACKING SEARCH **/
+            if (stack.isEmpty()) {
+            	l = root;
+            } else {
+            	l = stack.pop();
+            	Info<K, V> lhr = l.info;
+            	while (lhr.getClass() == Mark.class) {
+            		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
+            		lhr = l.info;
+            	}
             }
-            pinfo = p.info;                             // read pinfo once instead of every iteration
-            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
-                                                        // (just as if we'd read p's info field before the reference to l)
-            /** END SEARCH **/
+            while (l.left != null) { // while l is not a leaf;
+            	stack.push(l);
+            	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
+            
+            if (!stack.isEmpty()) {
+	            p = stack.peek();
+	            pinfo = p.info;
+            } else {
+            	return null; //empty tree
+            }
+            
+            if (l != p.left && l != p.right) continue; // Break iteration
+            /** END BACKTRACKING SEARCH **/ 
 
             if (key.equals(l.key)) {
                 return l.value;	// key already in the tree, no duplicate allowed
@@ -220,29 +233,16 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         
         Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
-//            /** SEARCH **/
-//            p = root;
-//            pinfo = p.info;
-//            l = p.left;
-//            while (l.left != null) {
-//                p = l;
-//                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
-//            }
-//            pinfo = p.info;                             // read pinfo once instead of every iteration
-//            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
-//                                                        // (just as if we'd read p's info field before the reference to l)
-//            /** END SEARCH **/
-            
             /** NEW BACKTRACKING SEARCH **/
             // TODO
             if (stack.isEmpty()) {
             	l = root;
             } else {
-            	System.out.println("Insert new attempt");
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
             	while (lhr.getClass() == Mark.class) {
             		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
             		lhr = l.info;
             	}
             }
@@ -258,7 +258,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
             	return null; //empty tree
             }
             
-            if (l != p.left && l != p.right) System.out.println("Insert error at p"); // Sanity check
+            if (l != p.left && l != p.right) continue; // Break iteration
             /** END BACKTRACKING SEARCH **/ 
 
             if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
@@ -298,7 +298,6 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
     // Delete key from dictionary, return the associated value when successful, null otherwise
     /** PRECONDITION: k CANNOT BE NULL **/
     public final V remove(final K key){
-
         /** SEARCH VARIABLES **/
         Node<K,V> gp;
         Info<K,V> gpinfo;
@@ -308,38 +307,17 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         /** END SEARCH VARIABLES **/
         
         Stack<Node<K, V>> stack = new Stack<>();
-        while (true) {
-            /** SEARCH **/
-//            gp = null;
-//            gpinfo = null;
-//            p = root;
-//            pinfo = p.info;
-//            l = p.left;
-//            while (l.left != null) {
-//                gp = p;
-//                p = l;
-//                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
-//            }
-//            // note: gp can be null here, because clearly the root.left.left == null
-//            //       when the tree is empty. however, in this case, l.key will be null,
-//            //       and the function will return null, so this does not pose a problem.
-//            if (gp != null) {
-//                gpinfo = gp.info;                               // - read gpinfo once instead of every iteration
-//                if (p != gp.left && p != gp.right) continue;    //   then confirm the child link to p is valid
-//                pinfo = p.info;                                 //   (just as if we'd read gp's info field before the reference to p)
-//                if (l != p.left && l != p.right) continue;      // - do the same for pinfo and l
-//            }
-            /** END SEARCH **/
-            
+        while (true) {   
+        	// TODO
             /** Backtracking Search **/
             if (stack.isEmpty()) {
             	l = root;
             } else {
-            	System.out.println("Delete new attempt");
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
             	while (lhr.getClass() == Mark.class) {
             		helpMarked(((Mark<K,V>) l.info).dinfo);
+            		l = stack.pop();
             		lhr = l.info;
             	}
             }
@@ -347,13 +325,11 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
             	stack.push(l);
             	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
             }
-            
-            if (!stack.isEmpty()) {
-            	p = stack.pop();
-            	pinfo = p.info;
-            } else {
-            	return null; //empty tree
-            }
+
+            // note: Stack should never be empty here
+        	p = stack.pop();
+        	pinfo = p.info;
+
             if (!stack.isEmpty()) {
             	gp = stack.peek();
             	gpinfo = gp.info;
@@ -364,6 +340,8 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
             //       when the tree is empty. however, in this case, l.key will be null,
             //       and the function will return null, so this does not pose a problem.
 
+            if (p != gp.left && p != gp.right) continue; // break iteration
+            if (l != p.left && l != p.right)  continue; 
             /** End Backtracking Search **/
             
             if (!key.equals(l.key)) return null;
