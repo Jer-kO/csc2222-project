@@ -142,63 +142,6 @@ public class EFRB_BST<K extends Comparable<? super K>, V> {
         return (l.key != null && key.compareTo(l.key) == 0) ? l.value : null;
     }
 
-    // Insert key to dictionary, returns the previous value associated with the specified key,
-    // or null if there was no mapping for the key
-    /** PRECONDITION: k CANNOT BE NULL **/
-    public final V putIfAbsent(final K key, final V value){
-        Node<K,V> newInternal;
-        Node<K,V> newSibling, newNode;
-
-        /** SEARCH VARIABLES **/
-        Node<K,V> p;
-        Info<K,V> pinfo;
-        Node<K,V> l;
-        /** END SEARCH VARIABLES **/
-
-        newNode = new Node<K,V>(key, value);
-
-        while (true) {
-
-            /** SEARCH **/
-            p = root;
-            pinfo = p.info;
-            l = p.left;
-            while (l.left != null) {
-                p = l;
-                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
-            }
-            pinfo = p.info;                             // read pinfo once instead of every iteration
-            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
-                                                        // (just as if we'd read p's info field before the reference to l)
-            /** END SEARCH **/
-
-            if (key.equals(l.key)) {
-                return l.value;	// key already in the tree, no duplicate allowed
-            } else if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
-                help(pinfo);
-            } else {
-                newSibling = new Node<K,V>(l.key, l.value);
-                if (l.key == null || key.compareTo(l.key) < 0)	// newinternal = max(ret.l.key, key);
-                    newInternal = new Node<K,V>(l.key, newNode, newSibling);
-                else
-                    newInternal = new Node<K,V>(key, newSibling, newNode);
-
-                final IInfo<K,V> newPInfo = new IInfo<K,V>(l, p, newInternal);
-
-                // try to IFlag parent
-                if (infoUpdater.compareAndSet(p, pinfo, newPInfo)) {
-                    helpInsert(newPInfo);
-                    return null;
-                } else {
-                    // if fails, help the current operation
-                    // [CHECK]
-                    // need to get the latest p.info since CAS doesnt return current value
-                    help(p.info);
-                }
-            }
-        }
-    }
-
     // Insert key to dictionary, return the previous value associated with the specified key,
     // or null if there was no mapping for the key
     /** PRECONDITION: k CANNOT BE NULL **/

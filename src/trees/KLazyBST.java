@@ -8,8 +8,14 @@ import java.util.HashMap;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-public class KLazyBST<K extends Comparable<? super K>, V> {
+import trees.EFRB_BST.Clean;
+import trees.EFRB_BST.DInfo;
+import trees.EFRB_BST.IInfo;
+import trees.EFRB_BST.Node;
 
+public class KLazyBST<K extends Comparable<? super K>, V> {
+	private static final int K = 10;
+	
     //--------------------------------------------------------------------------------
     // Class: Node
     //--------------------------------------------------------------------------------
@@ -128,76 +134,6 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         return (l.key != null && key.compareTo(l.key) == 0) ? l.value : null;
     }
 
-    // Insert key to dictionary, returns the previous value associated with the specified key,
-    // or null if there was no mapping for the key
-    /** PRECONDITION: k CANNOT BE NULL **/
-    public final V putIfAbsent(final K key, final V value){
-        Node<K,V> newInternal;
-        Node<K,V> newSibling, newNode;
-
-        /** SEARCH VARIABLES **/
-        Node<K,V> p;
-        Info<K,V> pinfo;
-        Node<K,V> l;
-        /** END SEARCH VARIABLES **/
-
-        newNode = new Node<K,V>(key, value);
-        Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
-        while (true) {
-            /** NEW BACKTRACKING SEARCH **/
-            if (stack.isEmpty()) {
-            	l = root;
-            } else {
-            	l = stack.pop();
-            	Info<K, V> lhr = l.info;
-            	while (lhr.getClass() == Mark.class) {
-            		helpMarked(((Mark<K,V>) l.info).dinfo);
-            		l = stack.pop();
-            		lhr = l.info;
-            	}
-            }
-            while (l.left != null) { // while l is not a leaf;
-            	stack.push(l);
-            	l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
-            }
-            
-            if (!stack.isEmpty()) {
-	            p = stack.peek();
-	            pinfo = p.info;
-            } else {
-            	return null; //empty tree
-            }
-            
-            if (l != p.left && l != p.right) continue; // Break iteration
-            /** END BACKTRACKING SEARCH **/ 
-
-            if (key.equals(l.key)) {
-                return l.value;	// key already in the tree, no duplicate allowed
-            } else if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
-                help(pinfo);
-            } else {
-                newSibling = new Node<K,V>(l.key, l.value);
-                if (l.key == null || key.compareTo(l.key) < 0)	// newinternal = max(ret.l.key, key);
-                    newInternal = new Node<K,V>(l.key, newNode, newSibling);
-                else
-                    newInternal = new Node<K,V>(key, newSibling, newNode);
-
-                final IInfo<K,V> newPInfo = new IInfo<K,V>(l, p, newInternal);
-
-                // try to IFlag parent
-                if (infoUpdater.compareAndSet(p, pinfo, newPInfo)) {
-                    helpInsert(newPInfo);
-                    return null;
-                } else {
-                    // if fails, help the current operation
-                    // [CHECK]
-                    // need to get the latest p.info since CAS doesnt return current value
-                    help(p.info);
-                }
-            }
-        }
-    }
-
     // Insert key to dictionary, return the previous value associated with the specified key,
     // or null if there was no mapping for the key
     /** PRECONDITION: k CANNOT BE NULL **/
@@ -214,10 +150,59 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         /** END SEARCH VARIABLES **/
         newNode = new Node<K, V>(key, value);
         
+        // Fast Lazy Phase
+        for (int i = 0; i < K; i++) {
+            /** SEARCH **/
+            p = root;
+            pinfo = p.info;
+            l = p.left;
+            while (l.left != null) {
+                p = l;
+                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
+            pinfo = p.info;                             // read pinfo once instead of every iteration
+            if (l != p.left && l != p.right) continue;  // then confirm the child link to l is valid
+                                                        // (just as if we'd read p's info field before the reference to l)
+            /** END SEARCH **/
+            
+            if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
+                help(pinfo);
+            } else {
+                if (key.equals(l.key)) {
+                    // key already in the tree, try to replace the old node with new node
+                    newPInfo = new IInfo<K, V>(l, p, newNode);
+                    result = l.value;
+                } else {
+                    // key is not in the tree, try to replace a leaf with a small subtree
+                    newSibling = new Node<K, V>(l.key, l.value);
+                    if (l.key == null || key.compareTo(l.key) < 0) // newinternal = max(ret.l.key, key);
+                    {
+                        newInternal = new Node<K, V>(l.key, newNode, newSibling);
+                    } else {
+                        newInternal = new Node<K, V>(key, newSibling, newNode);
+                    }
+
+                    newPInfo = new IInfo<K, V>(l, p, newInternal);
+                    result = null;
+                }
+
+                // try to IFlag parent
+                if (infoUpdater.compareAndSet(p, pinfo, newPInfo)) {
+                    helpInsert(newPInfo); // Complete own Insert (not helping others)
+                    return result;
+                } else {
+                    // if fails, help the current operation
+                    // need to get the latest p.info since CAS doesnt return current value
+//                    help(p.info);
+                }
+            }
+        }
+        
+        // Slow helping phase
+        System.out.println("Insert entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
             /** NEW BACKTRACKING SEARCH **/
-            // TODO
             if (stack.isEmpty()) {
             	l = root;
             } else {
@@ -289,9 +274,52 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         Node<K,V> l;
         /** END SEARCH VARIABLES **/
         
+        // Lazy Phase
+        for (int i = 0; i < K; i++) {
+            /** SEARCH **/
+            gp = null;
+            gpinfo = null;
+            p = root;
+            pinfo = p.info;
+            l = p.left;
+            while (l.left != null) {
+                gp = p;
+                p = l;
+                l = (l.key == null || key.compareTo(l.key) < 0) ? l.left : l.right;
+            }
+            // note: gp can be null here, because clearly the root.left.left == null
+            //       when the tree is empty. however, in this case, l.key will be null,
+            //       and the function will return null, so this does not pose a problem.
+            if (gp != null) {
+                gpinfo = gp.info;                               // - read gpinfo once instead of every iteration
+                if (p != gp.left && p != gp.right) continue;    //   then confirm the child link to p is valid
+                pinfo = p.info;                                 //   (just as if we'd read gp's info field before the reference to p)
+                if (l != p.left && l != p.right)  continue;      // - do the same for pinfo and l
+            }
+            /** END SEARCH **/
+            
+            if (!key.equals(l.key)) return null;
+            if (!(gpinfo == null || gpinfo.getClass() == Clean.class)) {
+                help(gpinfo);
+            } else if (!(pinfo == null || pinfo.getClass() == Clean.class)) {
+                help(pinfo);
+            } else {
+                // try to DFlag grandparent
+                final DInfo<K,V> newGPInfo = new DInfo<K,V>(l, p, gp, pinfo);
+
+                if (infoUpdater.compareAndSet(gp, gpinfo, newGPInfo)) {
+                    if (doDelete(newGPInfo)) return l.value; // try to complete own Delete
+                } else {
+                    // if fails, don't help gp like normal
+//                    help(gp.info);
+                }
+            }
+        }
+        
+        // Slow helping phase
+        System.out.println("Delete entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>();
         while (true) {   
-        	// TODO
             /** Backtracking Search **/
             if (stack.isEmpty()) {
             	l = root;
@@ -362,12 +390,29 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
 
         result = infoUpdater.compareAndSet(info.p, info.pinfo, new Mark<K,V>(info));
         final Info<K,V> currentPInfo = info.p.info;
-        // if  CAS succeed or somebody else already suceed helping, the helpMarked
+        // if  CAS succeed or somebody else already succeed helping, the helpMarked
         if (result || (currentPInfo.getClass() == Mark.class && ((Mark<K,V>) currentPInfo).dinfo == info)) {
             helpMarked(info);
             return true;
         } else {
             help(currentPInfo);
+            infoUpdater.compareAndSet(info.gp, info, new Clean()); // backoff CAS
+            return false;
+        }
+    }
+    
+    private boolean doDelete(final DInfo<K,V> info){
+        final boolean result;
+
+        // marking CAS
+        result = infoUpdater.compareAndSet(info.p, info.pinfo, new Mark<K,V>(info));
+        final Info<K,V> currentPInfo = info.p.info;
+        // if  CAS succeed or somebody else already succeed helping, the helpMarked
+        if (result || (currentPInfo.getClass() == Mark.class && ((Mark<K,V>) currentPInfo).dinfo == info)) {
+            helpMarked(info); // completes the delete
+            return true;
+        } else {
+        	// No helping even if mark was unsuccessful
             infoUpdater.compareAndSet(info.gp, info, new Clean()); // backoff CAS
             return false;
         }
