@@ -40,6 +40,7 @@ public class Main {
     static final ArrayList<TreeFactory<Integer>> factories =
             new ArrayList<TreeFactory<Integer>>();
     static {
+    	factories.add(new SkipListFactory<Integer>());
         factories.add(new EFRBFactory<Integer>());
         factories.add(new EFHRFactory<Integer>());
         factories.add(new KLazyBSTFactory<Integer>());
@@ -50,6 +51,13 @@ public class Main {
     protected static abstract class TreeFactory<K> {
         public abstract SetInterface<K> newTree(final Object param);
         public abstract String getName();
+    }
+    
+    protected static class SkipListFactory<K> extends TreeFactory<K> {
+        public SetInterface<K> newTree(final Object param) {
+            return new SkipListAdapter();
+        }
+        public String getName() { return "SkipList"; }
     }
 
     protected static class EFRBFactory<K> extends TreeFactory<K> {

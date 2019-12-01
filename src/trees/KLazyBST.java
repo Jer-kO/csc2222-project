@@ -14,7 +14,7 @@ import trees.EFRB_BST.IInfo;
 import trees.EFRB_BST.Node;
 
 public class KLazyBST<K extends Comparable<? super K>, V> {
-	private static final int K = 10;
+	private static final int K = 5;
 	
     //--------------------------------------------------------------------------------
     // Class: Node
@@ -191,8 +191,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
                     helpInsert(newPInfo); // Complete own Insert (not helping others)
                     return result;
                 } else {
-                    // if fails, help the current operation
-                    // need to get the latest p.info since CAS doesnt return current value
+                    // Do not do any helping in this case
 //                    help(p.info);
                 }
             }
