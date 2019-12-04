@@ -12,6 +12,7 @@
 \usepackage[noend]{algpseudocode}
 %\usepackage{indentfirst}
 \usepackage{lineno}
+\usepackage{url}
 %\linenumbers
 
 \pagestyle{fancy}
@@ -33,7 +34,7 @@
 \algtext*{EndIndent}
 
 \bibliographystyle{plainurl}
-\title{On The Performance of Lock-free Data Structures Optimized for Good Amortized Step Complexity}
+\title{An Efficient Implementation of a Lock-free Binary Search Tree with Good Amortized Step Complexity}
 \author{Jeremy Ko, University of Toronto, jerko@cs.toronto.edu}
 \date{}
 \setcounter{tocdepth}{2} % Depth of table of contents 
@@ -49,6 +50,8 @@
 
 \begin{abstract}
 %In this survey, we give an overview of the amortized analyses of many different lock-free data structures, which are those that may be queried and updated concurrently by multiple processes without the use of locks. 
+
+
 \end{abstract}
 
 
@@ -60,9 +63,10 @@ One way to compare the efficiency of various implementations of a data structure
 
 Unfortunately, amortized data structures are typically more complex and has more overhead when operations are performed without contention. For these reasons, these implementations may not actually perform well in practice compared to more simple lock-free data structures with worse amortized step complexity. This raises the question if there are more fine-grained analysis tools that can be used to better understand the complexity of lock-free data structures.
 
-In this paper, we explore the performance of binary search trees with good amortized step complexity. We do this by proposing a new implementation of a BST, which we call a $k$-lazy BST. The implementation is divided two phases, a \textit{lazy phase} and a \textit{helping phase}. During the lazy phase, operations behave like a naive implementation of a BST that simply restarts whenever conflicts with other operations arise. If an operation does not complete within a constant amount of time, the operation enters the helping phase. During the helping phase, operations behave like an implementation of a lock-free BST with good amortized step complexity. Operations may be required to help other operations complete in order to guarantee lock-free progress. Without the helping phase, our $k$-lazy BST will not guarantee lock-free progress.
+In this paper, we explore the performance of binary search trees with good amortized step complexity. We do this by proposing a new implementation of a BST, which we call a $k$-lazy BST. The implementation is divided two phases, a \textit{lazy phase} and a \textit{helping phase}. During the lazy phase, operations behave like a naive implementation of a BST that simply restarts whenever conflicts with other operations arise. If an operation does not complete within a constant amount of time, the operation enters the helping phase. During the helping phase, operations behave like an implementation of a lock-free BST with good amortized step complexity. Operations may be required to help other operations complete in order to guarantee lock-free progress. 
+%Without the helping phase, our $k$-lazy BST will not guarantee lock-free progress.
 
-(TODO: Paragraph explaining experimental results)
+We prove that our $k$-lazy BST has good amortized step complexity, and so performs well no matter how processes are scheduled or which operations are performed. In our experiments, we show that our $k$-lazy BST performs better than another implementation of a BST with the same amortized step complexity. For the workloads that were tested, our BST also outperforms a randomized skip list from the Java Concurrency Library.
 
 The remainder of the paper is organized as follows. In Section~\ref{section_contribution}, we list our contributions. In Section~\ref{section_model}, we describe the asynchronous shared memory model. In Section~\ref{section_related}, we discuss prior implementations of lock-free BSTs and analysis techniques of lock-free data structures. In Section~\ref{section_implementation}, we describe the implementation of our $k$-lazy BST. In Section~\ref{section_results}, we compare our $k$-lazy BST against two other lock-free BSTs. In Section~\ref{section_conclusion}, we evaluate our contributions and propose open problems.
 
@@ -71,8 +75,8 @@ In this paper, we make the following contributions:
 \begin{enumerate}
 	\item We discuss the limitations of current implementations of lock-free BSTs and the theoretical tools used to analyze them.
 	\item We propose a new implementation of a lock-free binary search tree using a lazy helping heuristic, which we call a $k$-lazy BST. 
-	\item We justify the correctness, progress guarantees, amortized step complexity of our $k$-lazy BST.
-	\item We compare our $k$-lazy BST to other implementations of BSTs with provably good amortized step complexity.
+	\item We justify the correctness, progress guarantees, and amortized step complexity of our $k$-lazy BST.
+	\item We show that our $k$-lazy BST performs better than other implementations of BSTs with the same amortized step complexity. We also show that our $k$-lazy BST performs better than the ConcurrentSkipListMap found in Java's Concurrency Library. 
 \end{enumerate}
 
 \section{Model}\label{section_model}
@@ -161,7 +165,7 @@ We next describe our $k$-lazy BST, where $k$ is a small constant. Each update op
 
 We first describe our algorithm for an \textsc{Insert}$(x)$ operation $op$ in more detail. The all attempts of the lazy phase begin with a search through the BST for the key $x$ starting at the root. If a node with key $x$ is found, the operation returns. So suppose no node with key $x$ is found, and let $B$ be the parent node of the insertion point of $op$. A new update record $R_{op}$ is created for $op$. A flagging CAS is performed at $B$, which attempts to update $B$'s $\info$ pointer to point to $R_{op}$. If the flagging CAS is successful, $op$ proceeds to complete the insertion transformation as described in Section~\ref{section_bst_EFHR}. No other operation can prevent $op$ from completing once the flagging CAS is successful. If the flagging CAS is unsuccessful, then a new lazy attempt is started. If the insertion is not successful after $k$ attempts, $op$ enters the helping phase. At the start of the helping phase, an new local stack is initialized for $op$. We use this stack to proceed with the \textsc{Insert}$(x)$ operation from EFRB-BST until successful.
 
-Our algorithm for n \textsc{Delete}$(x)$ operation $op$ follows similarly. In each lazy attempt of $op$, $op$ begins with a search through the BST for the key $x$ starting at the root. Assuming a leaf $\ell$ with key $x$ is found, $op$ attempts to remove $\ell$ from the BST using the deletion transformation outlined in Section~\ref{section_bst_EFHR}. If the flagging or marking CAS of $op$ is unsuccessful, $op$ unflags any nodes that were flagged for $op$, and then begins a new lazy attempt. After $k$ unsuccessful lazy attempts, $op$ enters the helping phase, in which it performs the \textsc{Delete}$(x)$ operation from EFRB-BST.
+Our algorithm for a \textsc{Delete}$(x)$ operation $op$ follows similarly. In each lazy attempt of $op$, $op$ begins with a search through the BST for the key $x$ starting at the root. Assuming a leaf $\ell$ with key $x$ is found, $op$ attempts to remove $\ell$ from the BST using the deletion transformation outlined in Section~\ref{section_bst_EFHR}. If the flagging or marking CAS of $op$ is unsuccessful, $op$ unflags any nodes that were flagged for $op$, and then begins a new lazy attempt. After $k$ unsuccessful lazy attempts, $op$ enters the helping phase, in which it performs the \textsc{Delete}$(x)$ operation from EFRB-BST.
 
 Our $k$-lazy BST implementation is linearizable. Intuitively, this is because the steps to perform updates to the BST are done exactly as in the EFRB-BST, which is a linearizable implementation of a BST. The at most $k$ lazy attempts of our implementation can only affect its step complexity. In the following theorem, we give an amortized analysis of our $k$-lazy BST, showing it has the same amortized step complexity as the EFRB-BST.
 
@@ -192,12 +196,39 @@ The amortized step complexity of a $k$-lazy BST implies that the BST is lock-fre
 For any finite $k \geq 0$, a $k$-lazy BST is lock-free.
 \end{corollary}
 
-\section{Experimental Results}\label{section_results}
-Trevor Brown has provided an implementation of the EFRB-BST in C++ and Java. Unfortunately, there is no implementation of the EFHR-BST. I am currently in the progress of implementing the EFHR-BST, which is required for me to implement a $k$-lazy BST.
+\section{Results}\label{section_results}
+In this section, we compare the throughput (operations per second) of our $k$-lazy BST against other lock-free dynamic set implementations in various experiments.
 
-I plan on comparing the performance of the $k$-lazy BST against the EFRB-BST and EFHR-BST for different operation workloads, number of processors, and values for $k$. In order to maximize the number of conflicting updates, I can consider sequences of operations in which processes always attempt to insert a new largest key into the BST. I also plan on counting the number of attempts and node traversals made by each type of BST.
+\subsection{Experimental Setup}
+Brown has provided an implementation of the EFRB-BST in Java as well as a framework for testing~\cite{BrownImpl19}. There is no implementation of the EFHR-BST. Brown's implementation of the EFRB-BST was used as a starting point to code an implementation of both an EFRB-BST and $k$-lazy BST. The parameter $k$ for our $k$-lazy BST implementation was set to $k = 5$. Note that there is no implementation of a lock-free BST in the Java Concurrency Library. Thus, we compare our $k$-lazy BST against Java's ConcurrentSkipListMap.
+
+All experiments were run on an m5d.8xlarge Amazon EC2 instance, with 32 virtual CPUs. In each experiment, each thread in a system of size $N \in  \{1, 4, 8, 16, 32\}$ attempts to perform as many data structure operations as possible in a 30 second time frame. The type of operation performed by each processes is chosen randomly, with 50\% of the operations being \textsc{Insert} and 50\% being \textsc{Delete}. The key of each operation is chosen uniformly at random in the range between 0 to 1000. The key range is kept small and no \textsc{Search} operations are performed so that the number of conflicting updates is maximized. \textsc{Search} operations are the same in all 3 BST implementations considered. Throughput is calculated by dividing the total number of operations completed by all threads in the system by the running time of the experiment. Each experiment was repeated for 3 trials, and the throughput reported is the average of the 3 trials. Figure~\ref{results} shows the reported throughput of each experiment.
+
+\begin{figure}[!bt]
+	\centering
+	\includegraphics[width=0.80\textwidth]{results.png} 
+	\caption{The throughput (in millions of operations per second) of a $k$-lazy BST EFRB-BST, EFHR-BST, and ConcurrentSkipListMap for a varying number of threads.}
+	\label{results}
+\end{figure}
+
+\subsection{Discussion of Results}
+In all experiments, the $k$-lazy BST performs as well as the EFRB-BST. Notice that the EFHR-BST which has amortized step complexity $O(h(op) + \dot{c}(op))$ performs worse than the EFRB-BST, which has amortized step complexity $\Omega(h(op)\dot{c}(op))$. However, all 3 lock-free BST implementations before better than the concurrent skip list provided by Java's Concurrency Library. 
+
+We suspect that the EFHR-BST does not perform as well as the EFBR-BST or $k$-lazy BST due to the overhead of performing stack operations. The majority of operations complete after a single attempt, and so there is little advantage in backtracking. Finding an operation workload in which the advantages of an EFHR-BST can be observed is difficult. When keys are inserted uniformly at random in the range $[0,M]$, it can be shown that with high probability, the resulting tree has height $\Theta(\log M)$~\cite{CLRS}. Thus, we require a large key range so that restarting searches from the root is expensive compared to backtracking. However, when the key range is large, the probability that we observe conflicting updates is small. With $N$ threads, the probability of scheduling an operation  that conflicts with another thread is less than $N/M$. In applications that generate unbalanced BSTs with many overlapping update operations, we suspect that the EFHR-BST to perform better than a EFBR-BST. 
+
+Due to time constraints, we do not provide results for any other operation workloads. Different \textsc{Insert} to \textsc{Delete} ratios and key ranges can easily be tested by the testing framework. Initial tests of such changes does not show any drastic differences in the reported throughput.
 
 \section{Conclusion}\label{section_conclusion}
+We have given an new implementation of a lock-free binary search tree, called a $k$-lazy BST, which has amortized step complexity $O(h(op) + \dot{c}(op))$. 
+
+There are several open problems and directions for future research. First, we observe that operation that enter the helping phase of a $k$-lazy BST and all update operations for a EFHR-BST require $\Theta(h(op))$ extra space to store all nodes visited during searches onto a local stack. We ask if it is possible to implement a lock-free BST with $O(h(op) + \dot{c}(op))$ amortized step complexity using $o(h(op))$ extra space per process.
+
+There are a few implementations of lock-free balanced binary search trees~\cite{BrownER14}. One such implementation has good amortized step complexity~\cite{Ko18}. It will be interesting to see if the concept of dividing operations into a lazy phase and helping phase can be extended to balanced BSTs.
+
+Finally, we ask if there are better theoretical or experimental tools to analyze lock-free data structures. This paper has shown the limitations of current theoretical and experimental tools. The goal of such research is to be able to suggest an efficient lock-free data structure for any given application.
+
+\section{Acknowledgments}
+I would like to thank Maryam Mehri Dehnavi for her helpful feedback.
 
 %\nocite{*}
 \bibliography{sources}

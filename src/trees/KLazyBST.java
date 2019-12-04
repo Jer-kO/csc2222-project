@@ -198,7 +198,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         }
         
         // Slow helping phase
-        System.out.println("Insert entering helping phase");
+//        System.out.println("Insert entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
             /** NEW BACKTRACKING SEARCH **/
@@ -316,7 +316,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         }
         
         // Slow helping phase
-        System.out.println("Delete entering helping phase");
+//        System.out.println("Delete entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>();
         while (true) {   
             /** Backtracking Search **/
