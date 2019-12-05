@@ -136,7 +136,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
 
     // Insert key to dictionary, return the previous value associated with the specified key,
     // or null if there was no mapping for the key
-    /** PRECONDITION: k CANNOT BE NULL **/
+    /** PRECONDITION: key CANNOT BE NULL **/
     public final V put(final K key, final V value) {
         Node<K, V> newInternal;
         Node<K, V> newSibling, newNode;
@@ -190,15 +190,11 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
                 if (infoUpdater.compareAndSet(p, pinfo, newPInfo)) {
                     helpInsert(newPInfo); // Complete own Insert (not helping others)
                     return result;
-                } else {
-                    // Do not do any helping in this case
-//                    help(p.info);
-                }
+                }  // Do CAS fails, not do any helping in this case
             }
         }
         
         // Slow helping phase
-//        System.out.println("Insert entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>(); // Initialize new stack for backtracking
         while (true) {
             /** NEW BACKTRACKING SEARCH **/
@@ -207,7 +203,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
             } else {
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
-            	while (lhr.getClass() == Mark.class) {
+            	while (lhr.getClass() == Mark.class) { // Backtrack until Clean node found
             		helpMarked(((Mark<K,V>) l.info).dinfo);
             		l = stack.pop();
             		lhr = l.info;
@@ -263,7 +259,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
     }
 
     // Delete key from dictionary, return the associated value when successful, null otherwise
-    /** PRECONDITION: k CANNOT BE NULL **/
+    /** PRECONDITION: key CANNOT BE NULL **/
     public final V remove(final K key){
         /** SEARCH VARIABLES **/
         Node<K,V> gp;
@@ -273,7 +269,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         Node<K,V> l;
         /** END SEARCH VARIABLES **/
         
-        // Lazy Phase
+        // Fast Lazy Phase
         for (int i = 0; i < K; i++) {
             /** SEARCH **/
             gp = null;
@@ -307,16 +303,12 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
                 final DInfo<K,V> newGPInfo = new DInfo<K,V>(l, p, gp, pinfo);
 
                 if (infoUpdater.compareAndSet(gp, gpinfo, newGPInfo)) {
-                    if (doDelete(newGPInfo)) return l.value; // try to complete own Delete
-                } else {
-                    // if fails, don't help gp like normal
-//                    help(gp.info);
-                }
+                    if (doDeleteNoHelp(newGPInfo)) return l.value; // try to complete own Delete
+                } // if CAS fails, don't help gp like normal
             }
         }
         
         // Slow helping phase
-//        System.out.println("Delete entering helping phase");
         Stack<Node<K, V>> stack = new Stack<>();
         while (true) {   
             /** Backtracking Search **/
@@ -325,7 +317,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
             } else {
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
-            	while (lhr.getClass() == Mark.class) {
+            	while (lhr.getClass() == Mark.class) { // Backtrack until Clean node found
             		helpMarked(((Mark<K,V>) l.info).dinfo);
             		l = stack.pop();
             		lhr = l.info;
@@ -400,7 +392,7 @@ public class KLazyBST<K extends Comparable<? super K>, V> {
         }
     }
     
-    private boolean doDelete(final DInfo<K,V> info){
+    private boolean doDeleteNoHelp(final DInfo<K,V> info){
         final boolean result;
 
         // marking CAS

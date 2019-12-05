@@ -154,7 +154,7 @@ public class EFHR_BST<K extends Comparable<? super K>, V> {
             } else {
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
-            	while (lhr.getClass() == Mark.class) {
+            	while (lhr.getClass() == Mark.class) {// Backtrack until Clean node found
             		helpMarked(((Mark<K,V>) l.info).dinfo);
             		l = stack.pop();
             		lhr = l.info;
@@ -229,7 +229,7 @@ public class EFHR_BST<K extends Comparable<? super K>, V> {
             } else {
             	l = stack.pop();
             	Info<K, V> lhr = l.info;
-            	while (lhr.getClass() == Mark.class) {
+            	while (lhr.getClass() == Mark.class) {// Backtrack until Clean node found
             		helpMarked(((Mark<K,V>) l.info).dinfo);
             		l = stack.pop();
             		lhr = l.info;

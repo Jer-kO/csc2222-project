@@ -1,4 +1,4 @@
-\documentclass[letterpaper]{article}
+\documentclass[letterpaper,twocolumn]{article}
 \usepackage[top=3cm,bottom=2.5cm,hmargin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 %\usepackage{mathrsfs,bm,color}
@@ -13,6 +13,7 @@
 %\usepackage{indentfirst}
 \usepackage{lineno}
 \usepackage{url}
+\usepackage{appendix}
 %\linenumbers
 
 \pagestyle{fancy}
@@ -35,13 +36,14 @@
 
 \bibliographystyle{plainurl}
 \title{An Efficient Implementation of a Lock-free Binary Search Tree with Good Amortized Step Complexity}
-\author{Jeremy Ko, University of Toronto, jerko@cs.toronto.edu}
+\author{Jeremy Ko \\ Deparment of Computer Science, University of Toronto \\ jerko@cs.toronto.edu}
 \date{}
 \setcounter{tocdepth}{2} % Depth of table of contents 
 \setcounter{secnumdepth}{3} % Depth in which sections are numbered
 
 \newcommand{\flag}{\mathit{flag}}
 \newcommand{\info}{\mathit{info}}
+\newcommand{\code}[1]{\texttt{#1}}
 
 \begin{document}
 \maketitle
@@ -49,9 +51,7 @@
 %\tableofcontents
 
 \begin{abstract}
-%In this survey, we give an overview of the amortized analyses of many different lock-free data structures, which are those that may be queried and updated concurrently by multiple processes without the use of locks. 
-
-
+Lock-free data structures are those that may be queried and updated concurrently by multiple processes without the use of locks. In order to achieve lock-freedom, operations typically help other operations that must update the same part of the data structure. We give a new implementation of a lock-free binary search tree, called a $k$-lazy binary search tree (BST), using a lazy helping heuristic, in which for a fixed number of steps, processes do not perform any helping. We show a $k$-lazy BST has amortized step complexity $O(h + N)$, where $h$ is the height of the BST and $N$ is the number of processes in the system. In all scenarios tested, our $k$-lazy BST performs better than another lock-free BSTs with the same amortized step complexity.
 \end{abstract}
 
 
@@ -107,7 +107,7 @@ The BST implements a dynamic set $S$ of keys, supporting the operations \textsc{
 
 A new node can be inserted into the binary search tree by replacing a leaf $l$ with a new subtree of three nodes. This is done by a series of three CAS instructions on the parent, $p$, of $l$, performing the following actions: 1) flagging $p$, 2) updating a child pointer of $p$ to point to the new subtree, and 3) unflagging $p$. This is illustrated in Figure~\ref{fig_bst_insert}. 
 
-\begin{figure}[!bt]
+\begin{figure*}[!tb]
 	\centering
 	\begin{subfigure}[b]{0.3\textwidth}\centering
 		\includegraphics[width=0.5\textwidth]{bst_ins_2.png} % 740 px
@@ -124,12 +124,12 @@ A new node can be inserted into the binary search tree by replacing a leaf $l$ w
 		\caption{Unflag B}
 	\end{subfigure}
 	\caption{The steps to perform \textsc{Insert}(C). Flagged nodes are gray and marked nodes are crossed.}\label{fig_bst_insert}
-\end{figure}
+\end{figure*}
 
 A node $l$, as well as its parent, can be removed from the binary search tree by updating the child pointer of $l$'s grandparent to point to $l$'s sibling. This is done by a series of four CAS instructions performing the following actions: 1) flagging $l$'s grandparent, $gp$, 2) marking $l$'s parent, $p$, 3) updating a child pointer of $gp$ to point to $l$'s sibling, and 4) unflagging $gp$. This is illustrated in Figure~\ref{fig_bst_delete}.
 
 %CAS instructions that attempt to change the state of a node from \textsc{Clean} to either \textsc{IFlag} or \textsc{DFlag} are called \textit{flagging} CAS. CAS instructions that attempt to change the state of a node from \textsc{Clean} to \textsc{Mark} are called \textit{marking} CAS. 
-\begin{figure}[!bt]
+\begin{figure*}[!bt]
 	\centering
 	\begin{subfigure}[b]{0.2\textwidth}\centering
 		\includegraphics[width=1\textwidth]{bst_del_2.png}
@@ -151,7 +151,7 @@ A node $l$, as well as its parent, can be removed from the binary search tree by
 		\caption{Unflag B}
 	\end{subfigure}
 	\caption{The steps to perform \textsc{Delete}(C). Flagged nodes are gray and marked nodes are crossed.}\label{fig_bst_delete}
-\end{figure}
+\end{figure*}
 
 Consider a successful \textsc{Insert}$(x)$ or \textsc{Delete}$(x)$ operation $op$ that modifies the binary search tree. The operation is divided into a series of \textit{update attempts}. The first attempt of $op$ begins by searching for the key $x$ starting from the root of the binary search tree until a leaf is found, and then performing the appropriate series of CAS instructions mentioned previously. These CAS instructions may be unsuccessful if there are concurrent operations modifying the same nodes. For example, the flagging CAS by $op$ that attempts to flags a node $p$ may be unsuccessful because $p$ has been previously flagged or marked by a different operation $op'$. When such a conflict occurs, $op$ \textit{helps} the operation that previously flagged or marked $p$ to complete by using the \textsc{UpdateRecord} pointed to by $p.\info$. If $op$ is helping an \textsc{Insert} operation $op'$, $op'$ is guaranteed to be completed in its current attempt (either by itself or by a helping operation). Once completed, $op$ starts a new attempt. If $op$ helps an \textsc{Delete} operation $op'$, $op'$ may be unable to complete if $op'$'s marking CAS is unsuccessful. In this case, a \textit{backoff CAS} for $op'$ is performed, which unflags the node that is flagged for $op'$. At this point, $op'$ is no longer preventing $op$ from completing, so $op$ starts a new attempt.
 
@@ -199,17 +199,18 @@ For any finite $k \geq 0$, a $k$-lazy BST is lock-free.
 \section{Results}\label{section_results}
 In this section, we compare the throughput (operations per second) of our $k$-lazy BST against other lock-free dynamic set implementations in various experiments.
 
-\subsection{Experimental Setup}
-Brown has provided an implementation of the EFRB-BST in Java as well as a framework for testing~\cite{BrownImpl19}. There is no implementation of the EFHR-BST. Brown's implementation of the EFRB-BST was used as a starting point to code an implementation of both an EFRB-BST and $k$-lazy BST. The parameter $k$ for our $k$-lazy BST implementation was set to $k = 5$. Note that there is no implementation of a lock-free BST in the Java Concurrency Library. Thus, we compare our $k$-lazy BST against Java's ConcurrentSkipListMap.
-
-All experiments were run on an m5d.8xlarge Amazon EC2 instance, with 32 virtual CPUs. In each experiment, each thread in a system of size $N \in  \{1, 4, 8, 16, 32\}$ attempts to perform as many data structure operations as possible in a 30 second time frame. The type of operation performed by each processes is chosen randomly, with 50\% of the operations being \textsc{Insert} and 50\% being \textsc{Delete}. The key of each operation is chosen uniformly at random in the range between 0 to 1000. The key range is kept small and no \textsc{Search} operations are performed so that the number of conflicting updates is maximized. \textsc{Search} operations are the same in all 3 BST implementations considered. Throughput is calculated by dividing the total number of operations completed by all threads in the system by the running time of the experiment. Each experiment was repeated for 3 trials, and the throughput reported is the average of the 3 trials. Figure~\ref{results} shows the reported throughput of each experiment.
-
-\begin{figure}[!bt]
+\begin{figure*}[!tb]
 	\centering
 	\includegraphics[width=0.80\textwidth]{results.png} 
 	\caption{The throughput (in millions of operations per second) of a $k$-lazy BST EFRB-BST, EFHR-BST, and ConcurrentSkipListMap for a varying number of threads.}
 	\label{results}
-\end{figure}
+\end{figure*}
+
+
+\subsection{Experimental Setup}
+Brown has provided an implementation of the EFRB-BST in Java as well as a framework for testing~\cite{BrownImpl19}. There is no implementation of the EFHR-BST. Brown's implementation of the EFRB-BST was used as a starting point to code an implementation of both an EFRB-BST and $k$-lazy BST. The parameter $k$ for our $k$-lazy BST implementation was set to $k = 5$. Note that there is no implementation of a lock-free BST in the Java Concurrency Library. Thus, we compare our $k$-lazy BST against Java's ConcurrentSkipListMap.
+
+All experiments were run on an m5d.8xlarge Amazon EC2 instance, with 32 virtual CPUs. In each experiment, each thread in a system of size $N \in  \{1, 4, 8, 16, 32\}$ attempts to perform as many data structure operations as possible in a 30 second time frame. The type of operation performed by each processes is chosen randomly, with 50\% of the operations being \textsc{Insert} and 50\% being \textsc{Delete}. The key of each operation is chosen uniformly at random in the range between 0 to 1000. The key range is kept small and no \textsc{Search} operations are performed so that the number of conflicting updates is maximized. \textsc{Search} operations are the same in all 3 BST implementations considered. Throughput is calculated by dividing the total number of operations completed by all threads in the system by the running time of the experiment. Each experiment was repeated for 3 trials, and the throughput reported is the average of the 3 trials. Figure~\ref{results} shows the reported throughput of each experiment.
 
 \subsection{Discussion of Results}
 In all experiments, the $k$-lazy BST performs as well as the EFRB-BST. Notice that the EFHR-BST which has amortized step complexity $O(h(op) + \dot{c}(op))$ performs worse than the EFRB-BST, which has amortized step complexity $\Omega(h(op)\dot{c}(op))$. However, all 3 lock-free BST implementations before better than the concurrent skip list provided by Java's Concurrency Library. 
@@ -232,6 +233,34 @@ I would like to thank Maryam Mehri Dehnavi for her helpful feedback.
 
 %\nocite{*}
 \bibliography{sources}
+
+\onecolumn
+\appendix
+\appendixpage
+\section{Reproducibility Appendix}
+
+Experiments were run on an m5d.8xlarge Amazon EC2 instance, with 32 virtual CPUs. The implementations of the $k$-lazy BST, EFBR-BST, and EFHR-BST can be cloned from the following git repository \url{https://github.com/Jer-kO/csc2222-project}:
+\begin{center}
+\code{git clone git@github.com:Jer-kO/csc2222-project.git}
+\end{center}
+
+\noindent The following Java 8 version was installed:
+\begin{center}
+	\code{sudo yum install java-1.8.0-openjdk-devel}
+\end{center}
+
+\noindent The source code can be compiled into a bin folder using \texttt{javac}:
+\begin{center}
+\code{javac -d bin/ -cp src src/main/Main.java}
+\end{center}
+
+When running the testing framework, the first four input arguments specify the number of threads, number of trials, number of seconds per trial, and the type of algorithm to test, respectively. The type of algorithm must be one of \{``KLazy'', ``EFBR'', ``EFHR'', ``SkipList''\}. The percentage of \textsc{Insest} and \textsc{Delete} operations is specified using the \texttt{-ins\#} and \texttt{-del\#} options. The remainder of the operations are \textsc{Search} operations. The key range is specified with the \texttt{-keys\#} option. Finally, the output file containing the results is specified with the \texttt{-file\#} option.
+
+For example, running the command
+\begin{center}
+	\code{java -cp bin main.Main 32 3 30 KLazy -ins50 -del50 -keys1000 -file-klazy4\_50\_50\_1000.csv}
+\end{center}
+runs an experiment with 32 threads, 3 trials, 30 seconds per trial, on the $k$-lazy BST with a 50\%-50\% \textsc{Insert} to \textsc{Delete} ratio on a key range of $[0,1000]$. Results of all trials are recorded in a new file called \texttt{klazy4\_50\_50\_1000.csv}. In particular, the file contains a column labeled \texttt{throughput}, which was used to generate all results reported in this paper. The reported throughput was the average of all trials.
 
 \end{document}
 
